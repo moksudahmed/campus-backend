@@ -35,7 +35,7 @@ async def login_for_access_token(
     db: AsyncSession = Depends(get_db),
     form_data: OAuth2PasswordRequestForm = Depends()
 ): 
-   
+    
     stmt = select(UserModel).where(UserModel.student_id == form_data.username)
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()

@@ -81,10 +81,12 @@ async def forgot_password(
                 success=True,
                 message="If the email exists, a reset link has been sent"
             )
-        email = user_found.login_id
-        # Generate token
-        token = reset_service.generate_reset_token(email)
         
+        email = user_found.login_id
+        
+        # Generate token
+        token = reset_service.generate_reset_token(db, email)
+        print(token)
         # Create reset link
         frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3000')
         reset_link = f"{frontend_url}/reset-password?token={token}"
@@ -119,8 +121,7 @@ async def verify_token(token: str = Query(..., description="Reset token to verif
     Verify if a reset token is valid
     
     - **token**: The reset token from the email link
-    """
-    print(token)
+    """    
     if not token:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
