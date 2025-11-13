@@ -1,0 +1,26 @@
+"""businesses.py creation
+
+Revision ID: 1874ad68c7cc
+Revises: 1a8e3ebe6705
+Create Date: 2025-05-22 10:58:14.905728
+
+"""
+from typing import Sequence, Union
+
+from alembic import op
+import sqlalchemy as sa
+
+
+# revision identifiers, used by Alembic.
+revision: str = '1874ad68c7cc'
+down_revision: Union[str, None] = '1a8e3ebe6705'
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    pass
+
+
+def downgrade() -> None:
+    pass

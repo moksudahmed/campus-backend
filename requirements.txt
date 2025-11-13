@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+sqlalchemy
+asyncpg
+databases
+alembic
+pydantic
+pydantic_settings
+passlib[bcrypt]
+python-jose[cryptography]
+pydantic[email]
+python-multipart
+reportlab
+flask
