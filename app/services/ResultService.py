@@ -16,7 +16,14 @@ class ResultService:
         self.db = db
 
     async def generate_result(self, student_id:str) -> FormatedResultSchema:
-        stmt = select(ResultFinalExam).where(ResultFinalExam.student_id == student_id)
+        #stmt = select(ResultFinalExam).where(ResultFinalExam.student_id == student_id)
+        stmt = (select(ResultFinalExam)
+            .where(ResultFinalExam.student_id == student_id)
+            .order_by(
+                ResultFinalExam.exm_exam_year.asc(),
+                ResultFinalExam.exm_exam_term.asc(),
+            )
+        )
         result = await self.db.execute(stmt)
         results = result.scalars().all()
 

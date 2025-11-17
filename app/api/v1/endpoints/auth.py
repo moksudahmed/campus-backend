@@ -6,7 +6,7 @@ from sqlalchemy.future import select
 from app.core.security import create_access_token, verify_password
 from app.core.security import generate_reset_token
 #from app.utils.email_utils import send_password_reset_email
-from app.schemas.auth import Token, UserCreate, UserResponse, UserUpdate, RoleAssignRequest, ResetPasswordRequest, StandardResponse
+from app.schemas.auth import Token, UserCreate, UserResponse, UserUpdate, RoleAssignRequest, ResetPasswordRequest, StandardResponse, ResetEmailRequest
 from app.models.user import User as UserModel
 from app.db.session import get_db
 from app.core.security import get_password_hash
@@ -39,7 +39,7 @@ async def login_for_access_token(
     stmt = select(UserModel).where(UserModel.student_id == form_data.username)
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
-   
+
     if not user or not verify_password(form_data.password, user.hash_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -48,7 +48,7 @@ async def login_for_access_token(
         )
 
     access_token = create_access_token(data={"sub": user.login_id})
-    return {"access_token": access_token, "token_type": "bearer", "student_id": user.student_id}
+    return {"access_token": access_token, "token_type": "bearer", "student_id": user.student_id, "email": user.login_id}
 
 
 # --------------------
@@ -130,6 +130,7 @@ async def assign_role(student_id: str, request: RoleAssignRequest, db: AsyncSess
 
 @router.post("/change-password/{student_id}", response_model=UserResponse)
 async def change_password(student_id: str, request: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
+    print("Hello World")
     print(student_id)
     result = await db.execute(select(UserModel).where(UserModel.student_id == student_id))
     user = result.scalar_one_or_none()
@@ -138,6 +139,22 @@ async def change_password(student_id: str, request: ResetPasswordRequest, db: As
         raise HTTPException(status_code=404, detail="User not found")
 
     user.hash_password = get_password_hash(request.new_password)
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+@router.post("/change-email/{student_id}", response_model=UserResponse)
+async def change_password(student_id: str, request: ResetEmailRequest, db: AsyncSession = Depends(get_db)):  
+   
+    result = await db.execute(select(UserModel).where(UserModel.student_id == student_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.login_id = request.email
     db.add(user)
     await db.commit()
     await db.refresh(user)

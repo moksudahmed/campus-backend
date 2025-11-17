@@ -30,7 +30,15 @@ async def read_course_enrollment_by_student(
     """
     Get all course enrollments for a specific student
     """
-    stmt = select(CourseEnrollment).where(CourseEnrollment.student_id == student_id)
+    #stmt = select(CourseEnrollment).where(CourseEnrollment.student_id == student_id)
+    stmt = (
+        select(CourseEnrollment)
+        .where(CourseEnrollment.student_id == student_id)
+        .order_by(
+            CourseEnrollment.tra_year.asc(),
+            CourseEnrollment.tra_term.asc(),
+        )
+    )
     result = await db.execute(stmt)
     enrollments = result.scalars().all()
 

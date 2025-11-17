@@ -9,6 +9,7 @@ class Token(BaseModel):
     token_type: str
     #usr_role: str
     student_id: str
+    email: str
 
 
 # --------------------
@@ -92,8 +93,9 @@ class ForgotPasswordRequest(BaseModel):
 
 
 class ResetPasswordRequest(BaseModel):
-    token: str = Field(..., min_length=1)
+    #token: str = Field(..., min_length=1)
     new_password: str = Field(..., min_length=8)
+    student_id: str
 
     @validator('new_password')
     def validate_password(cls, v):
@@ -108,6 +110,13 @@ class ResetPasswordRequest(BaseModel):
                 "new_password": "newSecurePass123"
             }
         }"""
+
+
+class ResetEmailRequest(BaseModel):
+    #token: str = Field(..., min_length=1)
+    email: str
+    student_id: str
+   
 
 
 class TokenVerifyResponse(BaseModel):
