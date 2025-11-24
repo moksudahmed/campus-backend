@@ -15,6 +15,7 @@ from app.models.password_reset import PasswordResetToken
 from app.schemas.auth import StandardResponse
 from app.core.security import get_password_hash
 from app.db.session import get_db
+from sqlalchemy import delete
 
 
 # ========== CONFIGURATION ==========
@@ -52,29 +53,53 @@ class PasswordResetService:
     # 🔹 Token Management
     # -----------------------
 
-    async def generate_reset_token(self, db: AsyncSession, email: str, expiry_hours: int = 1) -> str:
-        """Generate and persist a reset token"""
-        token = secrets.token_urlsafe(32)
-        expiry = datetime.utcnow() + timedelta(hours=expiry_hours)
+    async def generate_reset_token(
+        self, db: AsyncSession, email: str, expiry_hours: int = 1
+    ) -> str:
+        """
+        Generate a password reset token, remove previous tokens,
+        and ensure the new token is correctly inserted.
+        """
+        try:
+            token = secrets.token_urlsafe(32)
+            expiry = datetime.utcnow() + timedelta(hours=expiry_hours)
+            normalized_email = email.lower()
 
-        # Remove old tokens for this email (optional cleanup)
-        await db.execute(
-            PasswordResetToken.__table__.delete().where(PasswordResetToken.email == email)
-        )
+            # 1️⃣ Remove old tokens for this email
+            await db.execute(
+                delete(PasswordResetToken).where(
+                    PasswordResetToken.email == normalized_email
+                )
+            )
 
-        # Store token in DB
-        new_token = PasswordResetToken(
-            token=token,
-            email=email.lower(),
-            expiry=expiry,
-            used=False,
-            created_at=datetime.utcnow(),
-        )
-        print(new_token)
-        db.add(new_token)
-        await db.commit()
+            # 2️⃣ Insert new token
+            new_token = PasswordResetToken(
+                token=token,
+                email=normalized_email,
+                expiry=expiry,
+                used=False,
+                created_at=datetime.utcnow(),
+            )
 
-        return token
+            db.add(new_token)
+
+            # Ensures insert happens before commit
+            await db.flush()
+            await db.refresh(new_token)
+
+            # 3️⃣ Save changes
+            await db.commit()
+
+            return token
+
+        except Exception as e:
+            await db.rollback()
+            print("❌ ERROR saving reset token:", e)
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to generate password reset token.",
+            )
+
 
     async def user_exists(self, db: AsyncSession, student_id: str) -> bool:
         """Check if user exists in database"""
@@ -82,39 +107,76 @@ class PasswordResetService:
         return user #is not None
     
     async def verify_token(self, db: AsyncSession, token: str) -> Optional[str]:
-        """Validate if token exists and is valid"""
-        result = await db.execute(select(PasswordResetToken).where(PasswordResetToken.token == token))
-        token_data = result.scalar_one_or_none()
-
-        if not token_data:
+        """
+        Validate the provided reset token.
+        Returns the associated email (lowercased) when the token exists, is unexpired and not used.
+        Returns None otherwise.
+        """
+        if not token:
             return None
-        if token_data.used or datetime.utcnow() > token_data.expiry:
+
+        try:
+            result = await db.execute(
+                select(PasswordResetToken).where(PasswordResetToken.token == token)
+            )
+            token_data = result.scalar_one_or_none()
+
+            # not found
+            if token_data is None:
+                return None
+
+            # already used or expired
+            if token_data.used:
+                return None
+
+            if datetime.utcnow() > token_data.expiry:
+                return None
+
+            # token_data.email should be a string column on the model
+            return token_data.email.lower() if token_data.email else None
+
+        except Exception as exc:
+            # Replace print with your logger if available
+            print(f"Error verifying token: {exc}")
             return None
 
-        return token_data.email
 
     async def mark_token_used(self, db: AsyncSession, token: str):
         """Mark token as used"""
-        result = await db.execute(select(PasswordResetToken).where(PasswordResetToken.token == token))
-        token_obj = result.scalar_one_or_none()
-        if token_obj:
-            token_obj.used = True
-            await db.commit()
+        try:
+            result = await db.execute(select(PasswordResetToken).where(PasswordResetToken.token == token))
+            token_obj = result.scalar_one_or_none()
+            if token_obj:
+                token_obj.used = True
+                await db.commit()
+                
+        except Exception as exc:
+            # Replace print with your logger if available
+            print(f"Error verifying token: {exc}")
+            return None
 
     # -----------------------
     # 🔹 Password Update
     # -----------------------
 
     async def update_password(self, db: AsyncSession, email: str, new_password: str) -> bool:
-        """Update user password in DB"""
+        """Securely update the user's password."""
+
         user = await self.get_user_by_email(db, email)
         if not user:
             return False
 
-        user.hash_password = get_password_hash(new_password)
-        await db.commit()
-        await db.refresh(user)
-        return True
+        user.hash_password = get_password_hash(new_password)        
+
+        try:
+            db.add(user)
+            await db.commit()
+            await db.refresh(user)            
+            
+            return True
+        except Exception:
+            await db.rollback()
+            return False
 
     # -----------------------
     # 🔹 Email Sending

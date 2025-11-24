@@ -93,9 +93,27 @@ class ForgotPasswordRequest(BaseModel):
 
 
 class ResetPasswordRequest(BaseModel):
-    #token: str = Field(..., min_length=1)
+    token: str = Field(..., min_length=1)
     new_password: str = Field(..., min_length=8)
     student_id: str
+
+    @validator('new_password')
+    def validate_password(cls, v):
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters long')
+        return v
+
+    """class Config:
+        json_schema_extra = {
+            "example": {
+                "token": "xajOhUeDRor3lb9ETfUOIjE5rdRARMKqpNsWPKIjLBc",
+                "new_password": "newSecurePass123"
+            }
+        }"""
+
+class ResetRequestWithToken(BaseModel):
+    token: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=8)    
 
     @validator('new_password')
     def validate_password(cls, v):

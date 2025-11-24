@@ -13,7 +13,7 @@ import os
 import asyncio
 from dataclasses import dataclass
 from app.services.PasswordResetService import PasswordResetService
-from app.schemas.auth import StandardResponse, ForgotPasswordRequest, TokenVerifyResponse, ResetPasswordRequest
+from app.schemas.auth import StandardResponse, ForgotPasswordRequest, TokenVerifyResponse, ResetPasswordRequest, ResetRequestWithToken
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.db.session import get_db
 
@@ -85,8 +85,8 @@ async def forgot_password(
         email = user_found.login_id
         
         # Generate token
-        token = reset_service.generate_reset_token(db, email)
-        print(token)
+        token = await reset_service.generate_reset_token(db, email)
+        
         # Create reset link
         frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3000')
         reset_link = f"{frontend_url}/reset-password?token={token}"
@@ -116,19 +116,20 @@ async def forgot_password(
 
 
 @router.get("/api/verify-token", response_model=TokenVerifyResponse)
-async def verify_token(token: str = Query(..., description="Reset token to verify")):
+async def verify_token(token: str = Query(..., description="Reset token to verify"), db: AsyncSession = Depends(get_db)):
     """
     Verify if a reset token is valid
     
     - **token**: The reset token from the email link
     """    
+    
     if not token:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Token is required"
         )
     
-    email = reset_service.verify_token(token)
+    email = await reset_service.verify_token(db,token)
     
     if email:
         return TokenVerifyResponse(
@@ -143,10 +144,10 @@ async def verify_token(token: str = Query(..., description="Reset token to verif
             email=None
         )
 
-
+    
 @router.post("/api/reset-password", response_model=StandardResponse)
 async def reset_password(
-    request: ResetPasswordRequest,
+    request: ResetRequestWithToken,
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -155,23 +156,23 @@ async def reset_password(
     - **token**: Valid reset token
     - **new_password**: New password (minimum 8 characters)
     """
-    try:
+    try:        
         # Verify token
-        email = reset_service.verify_token(request.token)
+        email = await reset_service.verify_token(db, request.token)
         
         if not email:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid or expired token"
             )
-        print(email)
+        
         # Update password in database
         password_updated = await reset_service.update_password(
             db, email, request.new_password
         )
         
-        if password_updated:
-            reset_service.mark_token_used(request.token)
+        if password_updated:                   
+            reset_service.mark_token_used(db, request.token)            
             return StandardResponse(
                 success=True,
                 message="Password reset successfully"
@@ -181,7 +182,7 @@ async def reset_password(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to reset password"
             )
-            
+        
     except HTTPException:
         raise
     except Exception as e:
