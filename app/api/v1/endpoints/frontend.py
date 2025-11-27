@@ -69,6 +69,7 @@ async def forgot_password(
     - **email**: Valid email address of the user
     """
     try:
+        
         #email = request.email.lower()
         student_id = request.student_id
         #print(email)
@@ -88,9 +89,9 @@ async def forgot_password(
         token = await reset_service.generate_reset_token(db, email)
         
         # Create reset link
-        frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3000')
-        reset_link = f"{frontend_url}/reset-password?token={token}"
-        
+        frontend_url = 'https://campus.metrouni.ac.bd/' #os.getenv('FRONTEND_URL', 'http://localhost:3000')
+        reset_link = f"{frontend_url}reset-password?token={token}"
+       
         # Send email asynchronously
         email_sent = await reset_service.send_reset_email(db, email, reset_link)
         
@@ -157,6 +158,7 @@ async def reset_password(
     - **new_password**: New password (minimum 8 characters)
     """
     try:        
+        print("Hello Testr")
         # Verify token
         email = await reset_service.verify_token(db, request.token)
         
@@ -171,6 +173,7 @@ async def reset_password(
             db, email, request.new_password
         )
         
+        print(password_updated)
         if password_updated:                   
             reset_service.mark_token_used(db, request.token)            
             return StandardResponse(

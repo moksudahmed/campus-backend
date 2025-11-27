@@ -15,7 +15,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000","https://campus.metrouni.ac.bd/"],  # React frontend origin
+    allow_origins=["*"], #["https://campus.metrouni.ac.bd/"],  # React frontend origin
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -48,6 +48,7 @@ async def root():
 async def health():
     """Health check endpoint"""
     return {"status": "ok", "timestamp": datetime.now().isoformat()}
+
 # ------------------------------
 # For Local Testing
 # ------------------------------
@@ -73,4 +74,4 @@ async def startup_event():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=10000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=2096, reload=True)

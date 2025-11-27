@@ -165,9 +165,11 @@ class PasswordResetService:
         user = await self.get_user_by_email(db, email)
         if not user:
             return False
+        
 
         user.hash_password = get_password_hash(new_password)        
-
+        
+        print(user.hash_password)
         try:
             db.add(user)
             await db.commit()
