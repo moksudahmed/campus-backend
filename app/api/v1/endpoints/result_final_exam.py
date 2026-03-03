@@ -8,6 +8,7 @@ from decimal import Decimal
 from app.models.result_final_exam import ResultFinalExam
 from app.schemas.result_final_exam import ResultFinalExamSchema, FormatedResultSchema
 from app.services.ResultService import ResultService
+
 #router = APIRouter(prefix="/results", tags=["Exam Results"])
 router = APIRouter()
 
@@ -30,5 +31,15 @@ async def get_results_by_student(
 ):
     service = ResultService(db)    
     results = await service.generate_result(student_id)
+
+    return results
+
+@router.get("/current_term_results/{student_id}", response_model=List[FormatedResultSchema])
+async def get_current_term_results_by_student(
+    student_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    service = ResultService(db)    
+    results = await service.generate_current_term_result(student_id)
 
     return results

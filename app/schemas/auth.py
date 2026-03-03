@@ -18,7 +18,8 @@ class Token(BaseModel):
 class UserCreate(BaseModel):
     student_id: str
     login_id: str
-    password: str
+    #password: str
+    is_active: Optional[bool] = None
     #usr_role: Optional[str] = "faculty"
 
 
@@ -57,10 +58,10 @@ class User(BaseModel):
 
 
 class UserResponse(BaseModel):
-    student_id: str
-    login_id: str
+    student_id: Optional[str] = None
+    login_id: Optional[str] = None
     #usr_role: str
-    is_active: bool
+    is_active: Optional[bool] = None
 
     class Config:
         orm_mode = True
@@ -146,3 +147,6 @@ class TokenVerifyResponse(BaseModel):
 class StandardResponse(BaseModel):
     success: bool
     message: str
+
+class StatusUpdate(BaseModel):
+    usr_active: bool

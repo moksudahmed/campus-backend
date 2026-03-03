@@ -6,6 +6,7 @@ from typing import List
 from app.db.session import get_db
 from app.models.course_enrollment import CourseEnrollment
 from app.schemas.course_enrollment import CourseEnrollmentSchema
+from app.services.OptionService import OptionService
 
 router = APIRouter()
 
@@ -44,5 +45,61 @@ async def read_course_enrollment_by_student(
 
     if not enrollments:
         raise HTTPException(status_code=404, detail="No course enrollments found")
+
+    return enrollments
+
+    
+@router.get("/enrolled/{student_id}", response_model=List[CourseEnrollmentSchema])
+async def read_course_enrollment_by_term(
+    student_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get course enrollments for a specific student
+    filtered by current term and year
+    """
+
+    option_service = OptionService(db)
+
+    # Fetch options
+    option_year = await option_service.get_by_name("current_year")
+    option_term = await option_service.get_by_name("current_term")
+
+    if not option_year or not option_term:
+        raise HTTPException(
+            status_code=500,
+            detail="Current academic year or term is not configured"
+        )
+
+    try:
+        current_year = int(option_year.option_value)
+        current_term = int(option_term.option_value)
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=500,
+            detail="Invalid current_year or current_term configuration"
+        )
+
+    stmt = (
+        select(CourseEnrollment)
+        .where(
+            CourseEnrollment.student_id == student_id,
+            CourseEnrollment.tra_term == current_term,
+            CourseEnrollment.tra_year == current_year,
+        )
+        .order_by(
+            CourseEnrollment.tra_year.asc(),
+            CourseEnrollment.tra_term.asc(),
+        )
+    )
+
+    result = await db.execute(stmt)
+    enrollments = result.scalars().all()
+
+    if not enrollments:
+        raise HTTPException(
+            status_code=404,
+            detail="No course enrollments found"
+        )
 
     return enrollments

@@ -69,7 +69,6 @@ async def forgot_password(
     - **email**: Valid email address of the user
     """
     try:
-        
         #email = request.email.lower()
         student_id = request.student_id
         #print(email)
@@ -158,7 +157,7 @@ async def reset_password(
     - **new_password**: New password (minimum 8 characters)
     """
     try:        
-        print("Hello Testr")
+        
         # Verify token
         email = await reset_service.verify_token(db, request.token)
         
@@ -167,6 +166,7 @@ async def reset_password(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid or expired token"
             )
+        print("Hello Testr")
         
         # Update password in database
         password_updated = await reset_service.update_password(

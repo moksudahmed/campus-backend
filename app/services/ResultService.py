@@ -5,11 +5,15 @@ from sqlalchemy.future import select
 from sqlalchemy.sql import func
 from fastapi import HTTPException, status
 from pydantic import ValidationError
-
+from dotenv import load_dotenv
+import os
+from app.services.OptionService import OptionService
 from app.models import (
     ResultFinalExam
 )
 from app.schemas.result_final_exam import ResultFinalExamSchema, FormatedResultSchema
+
+load_dotenv()
 
 class ResultService:
     def __init__(self, db: AsyncSession):
@@ -35,6 +39,42 @@ class ResultService:
         formated_result = self.prepare_result(results)
         return formated_result
     
+    async def generate_current_term_result(
+            self,
+            student_id: str
+        ) -> FormatedResultSchema:
+
+            service = OptionService(self.db)    
+            option_year = await service.get_by_name('current_year')
+            option_term = await service.get_by_name('current_term')
+            
+            CURRENT_YEAR=option_year.option_value
+            CURRENT_TERM=option_term.option_value
+
+            stmt = (
+                select(ResultFinalExam)
+                .where(ResultFinalExam.student_id == student_id)
+                .where(ResultFinalExam.exm_exam_year == CURRENT_YEAR)
+                .where(ResultFinalExam.exm_exam_term == CURRENT_TERM)
+                .order_by(
+                    ResultFinalExam.exm_exam_year.asc(),
+                    ResultFinalExam.exm_exam_term.asc(),
+                )
+            )
+
+            result = await self.db.execute(stmt)
+            results = result.scalars().all()
+
+            if not results:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"No results found for student ID {student_id} "
+                        f"for Year {CURRENT_YEAR}, Term {CURRENT_TERM}"
+                )
+
+            formatted_result = self.prepare_result(results)
+            return formatted_result
+
     def prepare_result(self, results):
         results_list = []
         for val in results:

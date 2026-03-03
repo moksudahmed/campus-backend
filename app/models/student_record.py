@@ -29,4 +29,5 @@ class StudentRecord(Base):
     per_nationality = Column(String(50))
     pro_officialName = Column(String)
     per_title = Column(String(20))
+    per_email = Column(String(100))
     dpt_officalNameforCertificate = Column(String)

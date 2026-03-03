@@ -214,17 +214,45 @@ class PasswordResetService:
             return False
 
     def create_reset_email_html(self, user_name: str, reset_link: str) -> str:
-        """HTML Template for Email"""
+        """HTML Template for Password Reset Email"""
         return f"""
         <html>
-        <body style="font-family: Arial, sans-serif; background:#f9f9f9; padding:20px;">
-            <div style="background:#fff; padding:30px; border-radius:10px;">
-                <h2 style="color:#4F46E5;">Password Reset Request</h2>
-                <p>Hello {user_name},</p>
-                <p>Click below to reset your password:</p>
-                <a href="{reset_link}" style="background:#4F46E5; color:white; padding:10px 20px; border-radius:6px; text-decoration:none;">Reset Password</a>
-                <p style="margin-top:20px;">Link expires in 1 hour.</p>
-            </div>
+        <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:#f4f4f7; margin:0; padding:0;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
+                <tr>
+                    <td align="center">
+                        <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.1); overflow:hidden;">
+                            <!-- Header -->
+                            <tr>
+                                <td style="background:#4F46E5; padding:30px; text-align:center; color:#ffffff;">
+                                    <h1 style="margin:0; font-size:24px;">Password Reset Request</h1>
+                                </td>
+                            </tr>
+                            <!-- Body -->
+                            <tr>
+                                <td style="padding:30px; color:#333333; font-size:16px; line-height:1.6;">
+                                    <p>Hi <strong>{user_name}</strong>,</p>
+                                    <p>We received a request to reset your password. Click the button below to reset it:</p>
+                                    <p style="text-align:center; margin:30px 0;">
+                                        <a href="{reset_link}" style="background:#4F46E5; color:#ffffff; padding:12px 24px; border-radius:8px; text-decoration:none; font-weight:bold; display:inline-block;">
+                                            Reset Password
+                                        </a>
+                                    </p>
+                                    <p>If you didn’t request a password reset, you can safely ignore this email.</p>
+                                    <p style="margin-top:20px; font-size:14px; color:#777777;">This link will expire in 1 hour.</p>
+                                </td>
+                            </tr>
+                            <!-- Footer -->
+                            <tr>
+                                <td style="background:#f4f4f7; padding:20px; text-align:center; font-size:12px; color:#999999;">
+                                    &copy; {2025} Your Company. All rights reserved.
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
         </body>
         </html>
         """
+

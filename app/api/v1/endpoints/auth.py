@@ -46,8 +46,9 @@ async def login_for_access_token(
             detail="Incorrect login ID or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
-    access_token = create_access_token(data={"sub": user.login_id})
+    
+    access_token = await create_access_token(db, form_data.username,name="login", abilities="['student-login']")
+    
     return {"access_token": access_token, "token_type": "bearer", "student_id": user.student_id, "email": user.login_id}
 
 
@@ -83,6 +84,21 @@ async def register_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
     await db.refresh(db_user)
     return db_user
 
+@router.post("/batch-register", response_model=UserResponse)
+async def register_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(UserModel))
+
+    hashed_password = get_password_hash('12345678')
+    db_user = UserModel(
+        person_id=user.student_id,
+        login_id=user.login_id,
+        hash_password = hashed_password,        
+        usr_active=True,
+    )
+    db.add(db_user)
+    await db.commit()
+    await db.refresh(db_user)
+    return db_user
 
 @router.put("/update-user/{student_id}", response_model=UserResponse)
 async def update_user(student_id: str, user_update: UserUpdate, db: AsyncSession = Depends(get_db)):

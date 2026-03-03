@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from datetime import date
 from typing import Optional
+from typing import List
 
 
 class StudentRecordSchema(BaseModel):
@@ -27,7 +28,13 @@ class StudentRecordSchema(BaseModel):
     per_nationality: Optional[str]
     pro_officialName: Optional[str]
     per_title: Optional[str]
+    per_email: Optional[str]
     dpt_officalNameforCertificate: Optional[str]
 
     class Config:
         orm_mode = True
+
+
+class AllStudentRecordSchema(BaseModel):
+    students: List[StudentRecordSchema]
+

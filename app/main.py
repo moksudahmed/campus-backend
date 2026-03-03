@@ -1,8 +1,9 @@
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
-from app.api.v1.endpoints import auth, result_final_exam, student_record, course_enrollment, frontend
+from app.api.v1.endpoints import auth, result_final_exam, student_record, course_enrollment, frontend, admin, admin_user, option
 import uvicorn
 from datetime import datetime, timedelta
+
 #app = FastAPI()
 app = FastAPI(
     title="Student Porstal RESTAPI",
@@ -15,7 +16,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], #["https://campus.metrouni.ac.bd/"],  # React frontend origin
+    allow_origins=["https://campus.metrouni.ac.bd/"],  # React frontend origin
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -27,6 +28,9 @@ app.include_router(result_final_exam.router, prefix="/api/v1/result", tags=["res
 app.include_router(student_record.router, prefix="/api/v1/student-record", tags=["student-record"])
 app.include_router(course_enrollment.router, prefix="/api/v1/course", tags=["course"])
 
+app.include_router(admin_user.router, prefix="/api/v1/admin-user", tags=["admin-user"])
+app.include_router(admin.router, prefix="/api/v1/admin", tags=["admin"])
+#app.include_router(option.router, prefix="/api/v1/option", tags=["option"])
 
 @app.get("/", tags=["Root"])
 async def root():
@@ -43,6 +47,8 @@ async def root():
             "docs": "GET /docs"
         }
     }
+
+
 
 @app.get("/health", tags=["System"])
 async def health():

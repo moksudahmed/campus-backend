@@ -35,7 +35,10 @@ async def read_student(student_id: str, db: AsyncSession = Depends(get_db)):
         )
     return student  # ✅ return single object, not list
 
-DEFAULT_PHOTO = "G:/React App/MuErp/mu_erp_backend/default-avatar.jpg"   
+#DEFAULT_PHOTO = "G:/React App/MuErp/mu_erp_backend/default-avatar.jpg"   
+#PHOTO_DIRECTORY = "static/photos"
+DEFAULT_PHOTO = "static/photos/default-avatar.jpg"
+
 
 @router.get("/student-photo/{student_id}")
 async def get_student_photo(student_id: str):
@@ -50,7 +53,7 @@ async def get_student_photo(student_id: str):
     # Use default photo if student photo does not exist
     if not os.path.exists(filepath):
         filepath = DEFAULT_PHOTO
-
+    
     # Return the image as a FileResponse
     return FileResponse(filepath, media_type="image/jpeg")
 
