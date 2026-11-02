@@ -1,26 +1,92 @@
 # app/services/ad_option_service.py
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+)
+from fastapi.security import (
+    HTTPBearer,
+    HTTPAuthorizationCredentials,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-from typing import List
 
 from app.db.session import get_db
-from app.models.option import Option
-from app.schemas.option import OptionBase, OptionResponse
+from app.services.OptionService import OptionService
+from app.core.security import verify_token
+
 
 router = APIRouter()
 
-# ✅ Return a single student
-@router.get("/{name}", response_model=OptionResponse)
-async def read_student(name: str, db: AsyncSession = Depends(get_db)):
-    stmt = select(Option).where(Option.option_name == name)
-    result = await db.execute(stmt)
-    student = result.scalars().first()  # ✅ .first() instead of .all()
-    
-    if not student:
+# HTTP Bearer authentication
+security = HTTPBearer()
+
+
+# --------------------------------------------------------------------------
+# Verify current authenticated token
+# --------------------------------------------------------------------------
+async def get_current_token(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: AsyncSession = Depends(get_db),
+):
+    token = credentials.credentials
+
+    return await verify_token(
+        db=db,
+        token=token,
+    )
+
+
+# --------------------------------------------------------------------------
+# Get current academic term and year
+# --------------------------------------------------------------------------
+@router.get("/current-term")
+async def get_current_term(
+    db: AsyncSession = Depends(get_db),
+    token_record=Depends(get_current_token),
+):
+    """
+    Return the currently configured academic year and term.
+
+    Authentication:
+        Authorization: Bearer <access_token>
+
+    Response:
+        {
+            "year": 2026,
+            "term": 1
+        }
+    """
+
+    service = OptionService(db)
+
+    option_year = await service.get_by_name("current_year")
+    option_term = await service.get_by_name("current_term")
+
+    if not option_year:
         raise HTTPException(
             status_code=404,
-            detail="Student not found"
+            detail="Current academic year is not configured.",
         )
-    return student  # ✅ return single object, not list
+
+    if not option_term:
+        raise HTTPException(
+            status_code=404,
+            detail="Current academic term is not configured.",
+        )
+
+    try:
+        current_year = int(option_year.option_value)
+        current_term = int(option_term.option_value)
+
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=500,
+            detail="Invalid current year or term configuration.",
+        )
+
+    return {
+        "year": current_year,
+        "term": current_term,
+    }
+

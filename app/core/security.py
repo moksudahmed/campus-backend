@@ -9,13 +9,16 @@ from app.models.personal_access_tokens import PersonalAccessToken
 from fastapi import HTTPException
 from sqlalchemy import delete
 from jose import jwt
+from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from app.db.session import get_db
 
-
-
+security = HTTPBearer()
 # to get a string like this run: openssl rand -hex 32
 SECRET_KEY = "your-secret-key"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 3
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -134,3 +137,63 @@ def verify_reset_token(token: str) -> str | None:
         return None
     except jwt.InvalidTokenError:
         return None
+
+async def verify_token(
+    db: AsyncSession,
+    token: str,
+):
+    """
+    Verify a personal access token.
+
+    Returns the token record if valid.
+    Raises HTTPException if the token is invalid or expired.
+    """
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication token is required.",
+        )
+
+    # Hash the raw token exactly as it was hashed during creation
+    hashed_token = hashlib.sha256(
+        token.encode("utf-8")
+    ).hexdigest()
+
+    # Find the token in database
+    result = await db.execute(
+        select(PersonalAccessToken).where(
+            PersonalAccessToken.token == hashed_token
+        )
+    )
+
+    token_record = result.scalar_one_or_none()
+
+    # Token doesn't exist
+    if token_record is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication token.",
+        )
+
+    # Check expiration
+    if token_record.expires_at and token_record.expires_at < datetime.utcnow():
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication token has expired.",
+        )
+
+    return token_record
+
+async def get_current_token(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: AsyncSession = Depends(get_db),
+):
+    token = credentials.credentials
+
+    token_record = await verify_token(
+        db=db,
+        token=token,
+    )
+
+    return token_record

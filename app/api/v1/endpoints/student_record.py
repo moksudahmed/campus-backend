@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from typing import List
@@ -7,10 +7,15 @@ from app.models.student_record import StudentRecord
 from app.schemas.student_record import StudentRecordSchema
 import os
 from fastapi.responses import FileResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from app.core.security import verify_token
+
+security = HTTPBearer()
+
 
 router = APIRouter()
 
-PHOTO_DIRECTORY = "C:/xampp/htdocs/muerp/photograph/"
+PHOTO_DIRECTORY = "D:/htdocs/muerp/photograph"
 
 # ✅ Return list of students
 @router.get("/", response_model=List[StudentRecordSchema])
@@ -22,41 +27,126 @@ async def read_students(skip: int = 0, limit: int = 10, db: AsyncSession = Depen
 
 
 # ✅ Return a single student
+# ✅ Return a single student — requires valid token
 @router.get("/{student_id}", response_model=StudentRecordSchema)
-async def read_student(student_id: str, db: AsyncSession = Depends(get_db)):
-    stmt = select(StudentRecord).where(StudentRecord.student_id == student_id)
+async def read_student(
+    student_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: AsyncSession = Depends(get_db),
+):
+    # --------------------------------------------------
+    # 1. Get token from Authorization: Bearer <token>
+    # --------------------------------------------------
+    token = credentials.credentials
+    print("TEStSTESTETSET")
+    # --------------------------------------------------
+    # 2. Verify token
+    # --------------------------------------------------
+    token_record = await verify_token(
+        db=db,
+        token=token,
+    )
+
+    # --------------------------------------------------
+    # 3. Make sure token belongs to the requested student
+    # --------------------------------------------------
+    if str(token_record.tokenable_id) != str(student_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not authorized to access this student record.",
+        )
+
+    # --------------------------------------------------
+    # 4. Get student record
+    # --------------------------------------------------
+    stmt = select(StudentRecord).where(
+        StudentRecord.student_id == student_id
+    )
+
     result = await db.execute(stmt)
-    student = result.scalars().first()  # ✅ .first() instead of .all()
-    
+
+    student = result.scalars().first()
+
+    # --------------------------------------------------
+    # 5. Student not found
+    # --------------------------------------------------
     if not student:
         raise HTTPException(
-            status_code=404,
-            detail="Student not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student not found",
         )
-    return student  # ✅ return single object, not list
+
+    # --------------------------------------------------
+    # 6. Return student record
+    # --------------------------------------------------
+    return student
+
 
 #DEFAULT_PHOTO = "G:/React App/MuErp/mu_erp_backend/default-avatar.jpg"   
 #PHOTO_DIRECTORY = "static/photos"
 DEFAULT_PHOTO = "static/photos/default-avatar.jpg"
 
-
 @router.get("/student-photo/{student_id}")
-async def get_student_photo(student_id: str):
+async def get_student_photo(
+    student_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: AsyncSession = Depends(get_db),
+):
     """
-    Serve a student's photo by their student_id.
-    Returns a default photo if the student's photo is not found.
-    Example: GET /api/v1/student-photo/111-118-001
-    """
-    filename = f"{student_id}.jpg"
-    filepath = os.path.join(PHOTO_DIRECTORY, filename)
+    Serve a student's photo by student_id.
 
-    # Use default photo if student photo does not exist
+    Requires:
+        Authorization: Bearer <access_token>
+
+    Returns:
+        Student photo if available.
+        Default photo if the student's photo does not exist.
+    """
+
+    # --------------------------------------------------
+    # 1. Get Bearer token
+    # --------------------------------------------------
+    token = credentials.credentials
+
+    # --------------------------------------------------
+    # 2. Verify token
+    # --------------------------------------------------
+    token_record = await verify_token(
+        db=db,
+        token=token,
+    )
+
+    # --------------------------------------------------
+    # 3. Make sure token belongs to requested student
+    # --------------------------------------------------
+    if str(token_record.tokenable_id) != str(student_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not authorized to access this student's photo.",
+        )
+
+    # --------------------------------------------------
+    # 4. Build student photo path
+    # --------------------------------------------------
+    filename = f"{student_id}.jpg"
+    filepath = os.path.join(
+        PHOTO_DIRECTORY,
+        filename,
+    )
+
+    # --------------------------------------------------
+    # 5. Use default photo if student photo doesn't exist
+    # --------------------------------------------------
     if not os.path.exists(filepath):
         filepath = DEFAULT_PHOTO
-    
-    # Return the image as a FileResponse
-    return FileResponse(filepath, media_type="image/jpeg")
 
+    # --------------------------------------------------
+    # 6. Return image
+    # --------------------------------------------------
+    return FileResponse(
+        filepath,
+        media_type="image/jpeg",
+    )
 """@router.get("/{student_id}", response_model=StudentRecordSchema)
 def read_student(student_id: int, db: Session = Depends(get_db)):
     student = crud.get_student_record_by_id(db, student_id)

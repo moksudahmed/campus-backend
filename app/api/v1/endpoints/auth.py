@@ -1,6 +1,20 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.security import OAuth2PasswordRequestForm
+#from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import (
+    OAuth2PasswordRequestForm,
+    HTTPBearer,
+    HTTPAuthorizationCredentials,
+)
+from app.core.security import (
+    create_access_token,
+    verify_password,
+    verify_token,
+    generate_reset_token,
+    get_password_hash,
+    get_current_token
+)
+import hashlib
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.core.security import create_access_token, verify_password
@@ -14,9 +28,20 @@ import bcrypt
 from typing import List
 from fastapi.responses import HTMLResponse, JSONResponse
 from app.services.PasswordResetService import PasswordResetService
+from sqlalchemy import delete
+from app.models.personal_access_tokens import PersonalAccessToken
+#from app.services.create_and_send_otp import otp_service
+from app.services.otp_service import create_and_send_otp, verify_student_otp
+from app.models.otp_model import VerifyOTPRequest
+import secrets
+import time
+from pwdlib import PasswordHash
+
+
+
 
 router = APIRouter()
-
+security = HTTPBearer()
 
 # --------------------
 # Helper: Password hashing
@@ -30,28 +55,327 @@ router = APIRouter()
 # --------------------
 # Auth Routes
 # --------------------
-@router.post("/login", response_model=Token)
+
+@router.post("/login")
 async def login_for_access_token(
     db: AsyncSession = Depends(get_db),
-    form_data: OAuth2PasswordRequestForm = Depends()
-): 
-    
-    stmt = select(UserModel).where(UserModel.student_id == form_data.username)
+    form_data: OAuth2PasswordRequestForm = Depends(),
+):
+    """
+    Authenticate a student and initiate email OTP verification.
+
+    Expected request:
+        Content-Type: application/x-www-form-urlencoded
+        username=<student_id>
+        password=<password>
+    """
+
+    # ------------------------------------------------------------
+    # 1. Validate input
+    # ------------------------------------------------------------
+    student_id = (form_data.username or "").strip()
+    password = form_data.password or ""
+
+    if not student_id or not password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Student ID and password are required.",
+        )
+
+    # ------------------------------------------------------------
+    # 2. Find student account
+    # ------------------------------------------------------------
+    stmt = select(UserModel).where(
+        UserModel.student_id == student_id
+    )
+
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
 
-    if not user or not verify_password(form_data.password, user.hash_password):
+    # IMPORTANT: Check for None before accessing user attributes.
+    if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect login ID or password",
+            detail="Student ID not found.",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # ------------------------------------------------------------
+    # 3. Verify password
+    # ------------------------------------------------------------
+    if not verify_password(password, user.hash_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect password.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # ------------------------------------------------------------
+    # 4. Get registered email
+    # ------------------------------------------------------------
+    student_email = user.login_id
+
+    if not student_email or not student_email.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No email address is registered for this student.",
+        )
+
+    student_email = student_email.strip()
+
+    # ------------------------------------------------------------
+    # 5. Generate and send OTP
+    # ------------------------------------------------------------
+    otp_result = await create_and_send_otp(
+        db=db,
+        student_id=user.student_id,
+        email=student_email,
+    )
+
+    if not otp_result.get("success"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=otp_result.get(
+                "message",
+                "Unable to send the verification code.",
+            ),
+        )
+
+    # ------------------------------------------------------------
+    # 6. Return OTP challenge
+    # ------------------------------------------------------------
+    return {
+        "success": True,
+        "requires_otp": True,
+        "student_id": user.student_id,
+        "email": student_email,
+        "expires_in": otp_result["expires_in"],
+        "message": (
+            "A verification code has been sent "
+            "to your registered email address."
+        ),
+    }
+    """if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Student ID not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not verify_password(
+        form_data.password,
+        user.hash_password,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    """
     
-    access_token = await create_access_token(db, form_data.username,name="login", abilities="['student-login']")
+    # ------------------------------------------------------------
+    # Create access token
+    # ------------------------------------------------------------
+
+    """access_token = await create_access_token(
+        db,
+        form_data.username,
+        name="login",
+        abilities="['student-login']",
+    )"""
+
+    # ------------------------------------------------------------
+    # Return authentication response
+    # ------------------------------------------------------------
     
-    return {"access_token": access_token, "token_type": "bearer", "student_id": user.student_id, "email": user.login_id}
+    """return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "student_id": user.student_id,
+        "email": user.login_id,
+    }"""
 
 
+
+@router.post("/verify-otp")
+async def verify_otp_login(
+    payload: VerifyOTPRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    student_id = payload.student_id.strip()
+    otp = payload.otp.strip()
+    print(otp)
+    if not student_id or not otp:
+        raise HTTPException(
+            status_code=422,
+            detail="Student ID and OTP are required.",
+        )
+
+    # 1. Verify the OTP.
+    # This helper should raise HTTPException for an invalid,
+    # expired, or already-used OTP.
+    await verify_student_otp(
+        db=db,
+        student_id=student_id,
+        otp=otp,
+    )
+    
+    # 2. Confirm the student account exists.
+    result = await db.execute(
+        select(UserModel).where(
+            UserModel.student_id == student_id
+        )
+    )
+
+    student_user = result.scalar_one_or_none()
+
+    if student_user is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Student account not found.",
+        )
+
+    # 3. Create tokens only after OTP verification succeeds.
+    access_token = await create_access_token(
+        db=db,
+        user_id=student_id,
+        name="student-access-token",
+        abilities="['student-login']",
+    )
+
+    """refresh_token = await create_refresh_token(
+        db=db,
+        student_id=student_id,
+    )"""
+
+    # 4. Update login information.
+    student_user.usr_lastLoginAt = int(time.time())
+
+    forwarded_for = request.headers.get("X-Forwarded-For")
+
+    client_ip = (
+        forwarded_for.split(",")[0].strip()
+        if forwarded_for
+        else request.client.host if request.client else None
+    )
+
+    if client_ip:
+        student_user.usr_lastLoginIP = client_ip[:20]
+
+    await db.commit()
+
+    # 5. Return tokens in the format expected by the frontend.
+    return {
+        "success": True,
+        "message": "Login successful.",
+        "access_token": access_token,
+        "refresh_token": access_token,
+        "token_type": "bearer",
+        "student_id": student_id,
+    }
+
+
+@router.post("/resend-otp")
+async def resend_otp(
+    payload: ResendOTPRequest,
+    db: AsyncSession = Depends(get_db),
+):
+
+    student_id = payload.student_id.strip()
+
+    result = await db.execute(
+        select(
+            StudentUser,
+            Student.email,
+        )
+        .join(
+            Student,
+            Student.studentID
+            == StudentUser.studentID,
+        )
+        .where(
+            StudentUser.studentID
+            == student_id
+        )
+    )
+
+    row = result.first()
+
+    if row is None:
+
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid verification request.",
+        )
+
+    student_user, email = row
+
+    if not student_user.usr_active:
+
+        raise HTTPException(
+            status_code=403,
+            detail="Your account is inactive.",
+        )
+
+    if not email:
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "No registered email address "
+                "is available."
+            ),
+        )
+
+    result = await resend_student_otp(
+        db=db,
+        student_id=student_id,
+        email=email,
+    )
+
+    return {
+        "success": True,
+
+        "message":
+            "A new verification code has been sent.",
+
+        "email":
+            result["email"],
+
+        "expires_in":
+            result["expires_in"],
+    }
+
+@router.post("/logout")
+async def logout(
+    token_record=Depends(get_current_token),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Logout the currently authenticated user.
+    """
+
+    token = credentials.credentials
+
+    # Remove the current token from database
+    hashed_token = hashlib.sha256(
+        token.encode("utf-8")
+    ).hexdigest()
+
+    await db.execute(
+        delete(PersonalAccessToken).where(
+            PersonalAccessToken.token == hashed_token
+        )
+    )
+
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": "Logged out successfully",
+    }
 # --------------------
 # User CRUD
 # --------------------
@@ -143,37 +467,84 @@ async def assign_role(student_id: str, request: RoleAssignRequest, db: AsyncSess
     await db.refresh(user)
     return user
 
+@router.post(
+    "/change-password/{student_id}",
+    response_model=UserResponse
+)
+async def change_password(
+    student_id: str,
+    request: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+    token_record=Depends(get_current_token),
+):
+    if str(token_record.tokenable_id) != str(student_id):
+        raise HTTPException(
+            status_code=403,
+            detail="You are not authorized to change this password.",
+        )
 
-@router.post("/change-password/{student_id}", response_model=UserResponse)
-async def change_password(student_id: str, request: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
-    print("Hello World")
-    print(student_id)
-    result = await db.execute(select(UserModel).where(UserModel.student_id == student_id))
+    result = await db.execute(
+        select(UserModel).where(
+            UserModel.student_id == student_id
+        )
+    )
+
     user = result.scalar_one_or_none()
 
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
 
-    user.hash_password = get_password_hash(request.new_password)
+    user.hash_password = get_password_hash(
+        request.new_password
+    )
+
     db.add(user)
+
     await db.commit()
     await db.refresh(user)
+
     return user
 
+@router.post(
+    "/change-email/{student_id}",
+    response_model=UserResponse
+)
+async def change_email(
+    student_id: str,
+    request: ResetEmailRequest,
+    db: AsyncSession = Depends(get_db),
+    token_record=Depends(get_current_token),
+):
+    if str(token_record.tokenable_id) != str(student_id):
+        raise HTTPException(
+            status_code=403,
+            detail="You are not authorized to change this email.",
+        )
 
-@router.post("/change-email/{student_id}", response_model=UserResponse)
-async def change_password(student_id: str, request: ResetEmailRequest, db: AsyncSession = Depends(get_db)):  
-   
-    result = await db.execute(select(UserModel).where(UserModel.student_id == student_id))
+    result = await db.execute(
+        select(UserModel).where(
+            UserModel.student_id == student_id
+        )
+    )
+
     user = result.scalar_one_or_none()
 
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
 
     user.login_id = request.email
+
     db.add(user)
+
     await db.commit()
     await db.refresh(user)
+
     return user
 
 

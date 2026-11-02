@@ -26,6 +26,8 @@ class User(Base):
     usr_login_log = Column("usr_loginLog", JSON)
     usr_last_login_at = Column("usr_lastLoginAt", Integer)
     hash_password = Column(String(200))
+    usr_otp_attempts = Column("usr_otpAttempts",Integer, nullable=False, default=0, server_default="0")
+    usr_otp_resend_at = Column("usr_otpResendAt", Integer, nullable=True)
 
     # Relationship to Student
     #student = relationship("Student", back_populates="student_user")

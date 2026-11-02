@@ -1,83 +1,183 @@
 from fastapi import FastAPI
-from starlette.middleware.cors import CORSMiddleware
-from app.api.v1.endpoints import auth, result_final_exam, student_record, course_enrollment, frontend, admin, admin_user, option
-import uvicorn
-from datetime import datetime, timedelta
+from fastapi.middleware.cors import CORSMiddleware
 
-#app = FastAPI()
-app = FastAPI(
-    title="Student Porstal RESTAPI",
-    description="API for handling password reset requests",
-    version="1.0.0"
+from app.api.v1.endpoints import (
+    auth,
+    result_final_exam,
+    student_record,
+    course_enrollment,
+    frontend,
+    admin,
+    admin_user,
+    verification,
+    option
 )
 
-# Set up CORS
-# Add CORS middleware
+from datetime import datetime
+
+
+# ============================================================
+# APPLICATION
+# ============================================================
+
+app = FastAPI(
+    title="Student Portal REST API",
+    description="API for Student Portal",
+    version="1.0.0",
+)
+
+
+# ============================================================
+# CORS
+# ============================================================
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://campus.metrouni.ac.bd/"],  # React frontend origin
+
+    
+    allow_origins= ["*"], #["https://campus.metrouni.ac.bd/"],  # React frontend origin
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+
+    allow_methods=[
+        "GET",
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE",
+        "OPTIONS",
+    ],
+
+    allow_headers=[
+        "Authorization",
+        "Content-Type",
+        "Accept",
+        "Origin",
+        "X-Requested-With",
+    ],
 )
 
-app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
-app.include_router(frontend.router, prefix="/frontend", tags=["Frontend"])
-app.include_router(result_final_exam.router, prefix="/api/v1/result", tags=["result"])
-app.include_router(student_record.router, prefix="/api/v1/student-record", tags=["student-record"])
-app.include_router(course_enrollment.router, prefix="/api/v1/course", tags=["course"])
 
-app.include_router(admin_user.router, prefix="/api/v1/admin-user", tags=["admin-user"])
-app.include_router(admin.router, prefix="/api/v1/admin", tags=["admin"])
-#app.include_router(option.router, prefix="/api/v1/option", tags=["option"])
+# ============================================================
+# ROUTES
+# ============================================================
+
+app.include_router(
+    auth.router,
+    prefix="/api/v1/auth",
+    tags=["auth"],
+)
+
+app.include_router(
+    frontend.router,
+    prefix="/frontend",
+    tags=["Frontend"],
+)
+
+app.include_router(
+    result_final_exam.router,
+    prefix="/api/v1/result",
+    tags=["result"],
+)
+
+app.include_router(
+    student_record.router,
+    prefix="/api/v1/student-record",
+    tags=["student-record"],
+)
+
+app.include_router(
+    course_enrollment.router,
+    prefix="/api/v1/course",
+    tags=["course"],
+)
+
+app.include_router(
+    verification.router,
+    prefix="/api/v1/verification",
+    tags=["verification"],
+)
+
+app.include_router(
+    admin_user.router,
+    prefix="/api/v1/admin-user",
+    tags=["admin-user"],
+)
+
+app.include_router(
+    admin.router,
+    prefix="/api/v1/admin",
+    tags=["admin"],
+)
+
+app.include_router(
+    option.router,
+    prefix="/api/v1/option",
+    tags=["option"],
+)
+
+# ============================================================
+# ROOT
+# ============================================================
 
 @app.get("/", tags=["Root"])
 async def root():
-    """Root endpoint with API information"""
+
     return {
-        "message": "Password Reset API",
+        "message": "Student Portal REST API",
         "version": "1.0.0",
         "endpoints": {
-            "forgot_password": "POST /api/forgot-password",
-            "verify_token": "GET /api/verify-token",
-            "reset_password": "POST /api/reset-password",
-            "reset_page": "GET /reset-password?token=xxx",
             "health": "GET /health",
-            "docs": "GET /docs"
-        }
+            "docs": "GET /docs",
+            "redoc": "GET /redoc",
+        },
     }
 
 
+# ============================================================
+# HEALTH
+# ============================================================
 
 @app.get("/health", tags=["System"])
 async def health():
-    """Health check endpoint"""
-    return {"status": "ok", "timestamp": datetime.now().isoformat()}
 
-# ------------------------------
-# For Local Testing
-# ------------------------------
-# ============= STARTUP EVENT =============
+    return {
+        "status": "ok",
+        "timestamp": datetime.now().isoformat(),
+    }
+
+
+# ============================================================
+# STARTUP
+# ============================================================
 
 @app.on_event("startup")
 async def startup_event():
+
     print("=" * 60)
-    print("🚀 Password Reset API - FastAPI")
-    print("=" * 60)
-    print("📍 API Endpoints:")
-    print("   POST   /api/forgot-password")
-    print("   GET    /api/verify-token?token=xxx")
-    print("   POST   /api/reset-password")
-    print("   GET    /reset-password?token=xxx")
-    print("   GET    /health")
-    print("   GET    /docs (Swagger UI)")
-    print("   GET    /redoc (ReDoc)")
-    print("=" * 60)
-    print(f"🌐 Server running on: http://localhost:8000")
+    print("🚀 Student Portal REST API")
     print("=" * 60)
 
+    print("📍 Server: http://0.0.0.0:2096")
+
+    print("📍 GET /")
+    print("📍 GET /health")
+    print("📍 GET /docs")
+    print("📍 GET /redoc")
+
+    print("=" * 60)
+
+
+# ============================================================
+# RUN
+# ============================================================
 
 if __name__ == "__main__":
+
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=2096, reload=True)
+
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=2096,
+        reload=True,
+    )

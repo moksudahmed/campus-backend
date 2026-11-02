@@ -44,10 +44,73 @@ class ResultService:
             student_id: str
         ) -> FormatedResultSchema:
 
+            service = OptionService(self.db)
+
+            option_year = await service.get_by_name("current_year")
+            option_term = await service.get_by_name("current_term")
+
+            if not option_year or not option_year.option_value:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Current academic year is not configured."
+                )
+
+            if not option_term or not option_term.option_value:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Current academic term is not configured."
+                )
+
+            # Convert option values to the database column types
+            try:
+                current_year = int(option_year.option_value)
+                current_term = int(option_term.option_value)
+            except (TypeError, ValueError):
+                raise HTTPException(
+                    status_code=500,
+                    detail=(
+                        "Invalid current_year/current_term configuration. "
+                        f"current_year={option_year.option_value}, "
+                        f"current_term={option_term.option_value}"
+                    )
+                )
+
+            stmt = (
+                select(ResultFinalExam)
+                .where(
+                    ResultFinalExam.student_id == student_id,
+                    ResultFinalExam.exm_exam_year == current_year,
+                    ResultFinalExam.exm_exam_term == current_term,
+                )
+                .order_by(
+                    ResultFinalExam.exm_exam_year.asc(),
+                    ResultFinalExam.exm_exam_term.asc(),
+                )
+            )
+
+            result = await self.db.execute(stmt)
+            results = result.scalars().all()
+
+            if not results:
+                raise HTTPException(
+                    status_code=404,
+                    detail=(
+                        f"No results found for student ID {student_id} "
+                        f"for Year {current_year}, Term {current_term}"
+                    )
+                )
+
+            return self.prepare_result(results)
+
+            
+    async def generate_current_term_result2(
+            self,
+            student_id: str
+        ) -> FormatedResultSchema:
+            
             service = OptionService(self.db)    
             option_year = await service.get_by_name('current_year')
             option_term = await service.get_by_name('current_term')
-            
             CURRENT_YEAR=option_year.option_value
             CURRENT_TERM=option_term.option_value
 
@@ -61,10 +124,11 @@ class ResultService:
                     ResultFinalExam.exm_exam_term.asc(),
                 )
             )
-
+            
             result = await self.db.execute(stmt)
             results = result.scalars().all()
-
+            print("Hello Test")
+            print(results)
             if not results:
                 raise HTTPException(
                     status_code=404,
