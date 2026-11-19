@@ -14,7 +14,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.database import Base
+from app.db.base import Base
 from app.models.constants import STATUSES_SQL
 
 

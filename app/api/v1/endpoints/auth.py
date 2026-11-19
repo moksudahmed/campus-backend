@@ -32,7 +32,7 @@ from sqlalchemy import delete
 from app.models.personal_access_tokens import PersonalAccessToken
 #from app.services.create_and_send_otp import otp_service
 from app.services.otp_service import create_and_send_otp, verify_student_otp
-from app.models.otp_model import VerifyOTPRequest
+from app.models.otp_model import VerifyOTPRequest, ResendOTPRequest
 import secrets
 import time
 from pwdlib import PasswordHash
@@ -275,7 +275,7 @@ async def verify_otp_login(
         "student_id": student_id,
     }
 
-
+"""
 @router.post("/resend-otp")
 async def resend_otp(
     payload: ResendOTPRequest,
@@ -346,7 +346,7 @@ async def resend_otp(
         "expires_in":
             result["expires_in"],
     }
-
+"""
 @router.post("/logout")
 async def logout(
     token_record=Depends(get_current_token),

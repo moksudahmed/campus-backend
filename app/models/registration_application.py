@@ -1,3 +1,4 @@
+
 from datetime import datetime
 from decimal import Decimal
 
@@ -5,7 +6,6 @@ from sqlalchemy import (
     BigInteger,
     CheckConstraint,
     DateTime,
-    ForeignKey,
     Index,
     Numeric,
     SmallInteger,
@@ -15,7 +15,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.database import Base
+from app.db.base import Base
 from app.models.constants import STATUSES_SQL
 
 
@@ -58,52 +58,91 @@ class RegistrationApplication(Base):
     )
 
     application_id: Mapped[int] = mapped_column(
-        BigInteger, primary_key=True
+        BigInteger,
+        primary_key=True,
     )
+
     application_no: Mapped[str] = mapped_column(
-        String(30), nullable=False, unique=True
+        String(30),
+        nullable=False,
+        unique=True,
     )
+
+    # Student ID is validated through student_exists()
+    # instead of an unresolved SQLAlchemy ForeignKey.
     studentID: Mapped[str] = mapped_column(
         "studentID",
         String(15),
-        ForeignKey(
-            "public.tbl_o_student.studentID",
-            onupdate="CASCADE",
-            ondelete="RESTRICT",
-        ),
+        nullable=False,
+        index=True,
+    )
+
+    apl_term: Mapped[int] = mapped_column(
+        SmallInteger,
         nullable=False,
     )
-    apl_term: Mapped[int] = mapped_column(SmallInteger, nullable=False)
-    apl_year: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+
+    apl_year: Mapped[int] = mapped_column(
+        SmallInteger,
+        nullable=False,
+    )
+
     apl_application_status: Mapped[str] = mapped_column(
         String(25),
         nullable=False,
         server_default=text("'DRAFT'"),
     )
+
     apl_total_credit_hours: Mapped[Decimal] = mapped_column(
         Numeric(7, 2),
         nullable=False,
         server_default=text("0"),
     )
-    apl_student_remarks: Mapped[str | None] = mapped_column(Text)
-    apl_reviewer_remarks: Mapped[str | None] = mapped_column(Text)
+
+    apl_student_remarks: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    apl_reviewer_remarks: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
     apl_submitted_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True)
+        DateTime(timezone=True),
+        nullable=True,
     )
-    apl_reviewed_by: Mapped[str | None] = mapped_column(String(100))
+
+    apl_reviewed_by: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+
     apl_reviewed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True)
+        DateTime(timezone=True),
+        nullable=True,
     )
+
     apl_registration_completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True)
+        DateTime(timezone=True),
+        nullable=True,
     )
+
     apl_created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default=text("CURRENT_TIMESTAMP"),
     )
+
     apl_updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default=text("CURRENT_TIMESTAMP"),
     )
+    
+    apl_application_type: Mapped[int] = mapped_column(
+            SmallInteger,
+            nullable=False,
+            server_default=text("1"),
+        )

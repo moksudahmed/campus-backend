@@ -10,7 +10,9 @@ from app.api.v1.endpoints import (
     admin,
     admin_user,
     verification,
-    option
+    option,
+    student_applications
+
 )
 
 from datetime import datetime
@@ -32,9 +34,7 @@ app = FastAPI(
 # ============================================================
 
 app.add_middleware(
-    CORSMiddleware,
-
-    
+    CORSMiddleware,    
     allow_origins= ["*"], #["https://campus.metrouni.ac.bd/"],  # React frontend origin
     allow_credentials=True,
 
@@ -115,6 +115,13 @@ app.include_router(
     tags=["option"],
 )
 
+app.include_router(
+    student_applications.router,
+    prefix="/api/v1/registration-applications",
+    tags=["Subject Registration"],
+)
+
+
 # ============================================================
 # ROOT
 # ============================================================
@@ -131,8 +138,33 @@ async def root():
             "redoc": "GET /redoc",
         },
     }
+from fastapi import Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
 
+    print("\n========== 422 VALIDATION ERROR ==========")
+    print("URL:", request.url)
+    print("METHOD:", request.method)
+    print("ERRORS:", exc.errors())
+    print("==========================================\n")
+
+    return JSONResponse(
+        status_code=422,
+        content={
+            "message": "Validation failed",
+            "errors": [
+                {
+                    "location": error["loc"],
+                    "message": error["msg"],
+                    "type": error["type"],
+                }
+                for error in exc.errors()
+            ],
+        },
+    )
 # ============================================================
 # HEALTH
 # ============================================================
