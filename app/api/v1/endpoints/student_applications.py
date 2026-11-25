@@ -7,6 +7,7 @@ from app.api.v1.endpoints.registration_auth import (
     get_current_user,
     require_student,
 )
+from typing import List
 from decimal import Decimal
 from app.api.v1.endpoints.registration_helpers import output
 
@@ -135,15 +136,14 @@ async def create_application(
 # LIST STUDENT APPLICATIONS
 # GET /api/v1/registration-applications/mine
 # =========================================================
-
 @router.get(
     "/mine",
-    response_model=list[RegistrationApplicationOut],
+    response_model=List[RegistrationApplicationOut],
 )
 async def list_mine(
     user: UserModel = Depends(require_student),
     db: AsyncSession = Depends(get_db),
-):    
+):
     result = await db.execute(
         select(RegistrationApplication)
         .where(
@@ -159,7 +159,9 @@ async def list_mine(
     response = []
 
     for application in applications:
-        response.append(await output(db, application))
+        response.append(
+            await output(db, application)
+        )
 
     return response
 
@@ -203,8 +205,8 @@ async def get_available_subjects(
         5 = Other (not configured)
         6 = Special-Supplementary (not configured)
     """
-    print("Hello Test")
-    print(regi_type)
+    
+    
     student_id = user.student_id
    
     # Validate supported registration types
@@ -237,8 +239,7 @@ async def get_available_subjects(
             },
         )
 
-        subjects = result.mappings().all()
-
+        subjects = result.mappings().all()      
         return {
             "total": len(subjects),
             "student_id": student_id,

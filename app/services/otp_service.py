@@ -3,7 +3,7 @@ import hashlib
 import logging
 import secrets
 import time
-
+from typing import Optional
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -66,7 +66,7 @@ async def get_student_user(
     student_id: str,
     *,
     lock: bool = False,
-) -> User | None:
+) -> Optional[User]:
     """Retrieve a student account by ID."""
     query = select(User).where(
         User.student_id == student_id.strip()

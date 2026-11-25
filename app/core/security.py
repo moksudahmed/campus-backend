@@ -13,6 +13,7 @@ from sqlalchemy import select
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.db.session import get_db
+from typing import Optional
 
 security = HTTPBearer()
 # to get a string like this run: openssl rand -hex 32
@@ -124,18 +125,24 @@ def generate_reset_token(email: str) -> str:
     payload = {"sub": email, "exp": expire, "scope": "password_reset"}
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
-def verify_reset_token(token: str) -> str | None:
+
+def verify_reset_token(token: str) -> Optional[str]:
     """
     Verify a password reset token and return email if valid.
     """
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM]
+        )
+
         if payload.get("scope") != "password_reset":
             return None
+
         return payload.get("sub")
+
     except jwt.ExpiredSignatureError:
-        return None
-    except jwt.InvalidTokenError:
         return None
 
 async def verify_token(

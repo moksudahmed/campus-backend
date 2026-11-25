@@ -2,7 +2,10 @@ from datetime import datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from typing import Optional
 
+
+from pydantic import BaseModel, Field, root_validator
 
 ALLOWED_REG_STATUSES = {
     "Regular",
@@ -17,9 +20,16 @@ ALLOWED_REG_STATUSES = {
 
 
 class DetailCreate(BaseModel):
-    offeredModuleID: int | None = Field(default=None, gt=0)
+    offeredModuleID: Optional[int] = Field(
+        default=None,
+        gt=0,
+    )
 
-    moduleRegistrationID: int | None = Field(default=None, gt=0)    
+    moduleRegistrationID: Optional[int] = Field(
+        default=None,
+        gt=0,
+    )
+
 
     apd_reg_status: str = Field(
         default="Regular",
@@ -33,7 +43,7 @@ class DetailCreate(BaseModel):
         decimal_places=2,
     )
 
-    apd_detail_remarks: str | None = Field(
+    apd_detail_remarks: Optional[str] = Field(
         default=None,
         max_length=5000,
     )
@@ -63,12 +73,12 @@ class DetailOut(BaseModel):
     application_detail_id: int
     application_id: int
 
-    offeredModuleID: int | None
-    moduleRegistrationID: int | None
+    offeredModuleID: Optional[int]
+    moduleRegistrationID: Optional[int]
     
     apd_reg_status: str
 
     apd_credit_hours: Decimal
-    apd_detail_remarks: str | None
+    apd_detail_remarks: Optional[str]
 
     apd_created_at: datetime

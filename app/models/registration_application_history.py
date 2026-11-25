@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Any
-
+from typing import Optional
 from sqlalchemy import (
     BigInteger,
     CheckConstraint,
@@ -11,6 +11,7 @@ from sqlalchemy import (
     Text,
     text,
 )
+from typing import Dict, Any
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -59,17 +60,17 @@ class RegistrationApplicationHistory(Base):
         ),
         nullable=False,
     )
-    aph_previous_status: Mapped[str | None] = mapped_column(String(25))
+    aph_previous_status: Mapped[Optional[str]] = mapped_column(String(25))
     aph_new_status: Mapped[str] = mapped_column(String(25), nullable=False)
     aph_action_type: Mapped[str] = mapped_column(String(40), nullable=False)
     aph_action_by: Mapped[str] = mapped_column(String(100), nullable=False)
-    aph_action_by_role: Mapped[str | None] = mapped_column(String(40))
-    aph_action_remarks: Mapped[str | None] = mapped_column(Text)
-    aph_action_metadata: Mapped[dict[str, Any]] = mapped_column(
-        JSONB,
-        nullable=False,
-        server_default=text("'{}'::jsonb"),
-    )
+    aph_action_by_role: Mapped[Optional[str]] = mapped_column(String(40))
+    aph_action_remarks: Mapped[Optional[str]] = mapped_column(Text)  
+    aph_action_metadata: Mapped[Dict[str, Any]] = mapped_column(
+    JSONB,
+    nullable=False,
+    server_default=text("'{}'::jsonb"),
+)
     aph_action_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

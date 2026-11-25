@@ -14,7 +14,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
-
+from typing import Optional
 from app.db.base import Base
 from app.models.constants import STATUSES_SQL
 
@@ -99,32 +99,32 @@ class RegistrationApplication(Base):
         server_default=text("0"),
     )
 
-    apl_student_remarks: Mapped[str | None] = mapped_column(
+    apl_student_remarks: Mapped[Optional[str]] = mapped_column(
         Text,
         nullable=True,
     )
 
-    apl_reviewer_remarks: Mapped[str | None] = mapped_column(
+    apl_reviewer_remarks: Mapped[Optional[str]] = mapped_column(
         Text,
         nullable=True,
     )
 
-    apl_submitted_at: Mapped[datetime | None] = mapped_column(
+    apl_submitted_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
     )
 
-    apl_reviewed_by: Mapped[str | None] = mapped_column(
+    apl_reviewed_by: Mapped[Optional[str]] = mapped_column(
         String(100),
         nullable=True,
     )
 
-    apl_reviewed_at: Mapped[datetime | None] = mapped_column(
+    apl_reviewed_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
     )
 
-    apl_registration_completed_at: Mapped[datetime | None] = mapped_column(
+    apl_registration_completed_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
     )

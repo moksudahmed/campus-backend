@@ -2,18 +2,25 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
-
+from typing import Optional, List
 from app.schemas.constants import Status
+
+from typing import Optional
+from pydantic import BaseModel, Field
 
 
 class ApplicationCreate(BaseModel):
-    term: int
-    year: int
-    student_remarks: str | None = None
-    application_type: int
+    term: int = Field(gt=0, le=32767)
+    year: int = Field(gt=0, le=32767)
 
+    student_remarks: Optional[str] = Field(
+        default=None,
+        max_length=10000,
+    )
+    application_type: int
+    
 class ApplicationUpdate(BaseModel):
-    student_remarks: str | None = Field(
+    student_remarks: Optional[str] = Field(
         default=None,
         max_length=10000,
     )
@@ -29,12 +36,12 @@ class ApplicationOut(BaseModel):
     apl_year: int
     apl_application_status: str
     apl_total_credit_hours: Decimal
-    apl_student_remarks: str | None
-    apl_reviewer_remarks: str | None
-    apl_submitted_at: datetime | None
-    apl_reviewed_by: str | None
-    apl_reviewed_at: datetime | None
-    apl_registration_completed_at: datetime | None
+    apl_student_remarks: Optional[str]
+    apl_reviewer_remarks: Optional[str]
+    apl_submitted_at: Optional[datetime]
+    apl_reviewed_by: Optional[str]
+    apl_reviewed_at: Optional[datetime]
+    apl_registration_completed_at: Optional[datetime]
     apl_created_at: datetime
     apl_updated_at: datetime
     apl_application_type: int = Field(default=1, gt=0)
@@ -46,15 +53,18 @@ class RegistrationApplicationOut(BaseModel):
     apl_term: int
     apl_year: int
     apl_application_status: str
-    apl_total_credit_hours: float | None = None
-    apl_student_remarks: str | None = None
-    apl_created_at: datetime | None = None
+    apl_total_credit_hours: Optional[float]
+    apl_student_remarks: Optional[str]
+    apl_submitted_at: Optional[datetime]
+    apl_created_at: Optional[datetime]
     apl_application_type: int = Field(default=1, gt=0)
 
     model_config = ConfigDict(from_attributes=True)
-class ApplicationDetailOut(ApplicationOut):
-    details: list["DetailOut"] = Field(default_factory=list)
 
+class ApplicationDetailOut(ApplicationOut):
+    details: List["DetailOut"] = Field(
+        default_factory=list
+    )
 
 class RegistrationApplicationDetailCreate(BaseModel):
     offeredModuleID: Optional[int] = Field(default=None, gt=0)

@@ -1,7 +1,7 @@
 
 from datetime import datetime
 from decimal import Decimal
-
+from typing import Optional
 from sqlalchemy import (
     BigInteger,
     CheckConstraint,
@@ -110,14 +110,14 @@ class RegistrationApplicationDetail(Base):
     # =================================================
 
     # No ORM ForeignKey: validated through CourseOfferList
-    offeredModuleID: Mapped[int | None] = mapped_column(
+    offeredModuleID: Mapped[Optional[int]] = mapped_column(
             "offeredModuleID",
             Integer,
             nullable=True,
         )
     
         # No ORM ForeignKey: database maintains the actual constraint
-    moduleRegistrationID: Mapped[int | None] = mapped_column(
+    moduleRegistrationID: Mapped[Optional[int]] = mapped_column(
             "moduleRegistrationID",
             Integer,
             nullable=True,
@@ -148,7 +148,7 @@ class RegistrationApplicationDetail(Base):
     # REMARKS
     # =================================================
 
-    apd_detail_remarks: Mapped[str | None] = mapped_column(
+    apd_detail_remarks: Mapped[Optional[str]] = mapped_column(
         Text,
         nullable=True,
     )

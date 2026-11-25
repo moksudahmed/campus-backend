@@ -1,11 +1,11 @@
 from datetime import datetime, timezone
 from uuid import uuid4
-
+from typing import Optional
 from fastapi import HTTPException, status
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from typing import Optional, Dict, Any, List, Tuple
 from app.models.registration_application import RegistrationApplication
 from app.models.registration_application_detail import (
     RegistrationApplicationDetail,
@@ -217,17 +217,16 @@ async def ensure_editable(
 # =========================================================
 # ADD APPLICATION HISTORY
 # =========================================================
-
 async def add_history(
     db: AsyncSession,
     application: RegistrationApplication,
     user,
     action_type: str,
-    new_status: str | None = None,
-    remarks: str | None = None,
-    metadata: dict | None = None,
-    application_type: int | None = None,
-    previous_status: str | None = None,
+    new_status: Optional[str] = None,
+    remarks: Optional[str] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+    application_type: Optional[int] = None,
+    previous_status: Optional[str] = None,
 ) -> RegistrationApplicationHistory:
     """
     Add an application history record.
@@ -255,7 +254,7 @@ async def add_history(
         aph_action_by_role=action_by_role,
         aph_action_remarks=remarks,
         aph_action_metadata=metadata or {},
-        #apl_application_type=application_type,
+        # apl_application_type=application_type,
         aph_action_at=now_utc(),
     )
 
@@ -298,11 +297,13 @@ async def commit_or_conflict(
 # =========================================================
 # LOAD APPLICATION WITH DETAILS
 # =========================================================
-
 async def bundle(
     db: AsyncSession,
     application: RegistrationApplication,
-) -> tuple[RegistrationApplication, list[RegistrationApplicationDetail]]:
+) -> Tuple[
+    RegistrationApplication,
+    List[RegistrationApplicationDetail]
+]:
     """
     Load an application and its associated subject details.
 
